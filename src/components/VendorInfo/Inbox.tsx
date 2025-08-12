@@ -318,21 +318,29 @@ export default function ChatInterface() {
   }
 
   const handleSendMessage = () => {
-    if (message.trim()) {
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        content: message,
-        sender: "You",
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        isVendor: false,
-        replyTo: replyingTo || undefined,
-        deletedFor: "none",
-      }
-      addMessageToChat(newMessage)
-      setMessage("")
-      setReplyingTo(null)
-      setShowEmojiPicker(false)
+    const trimmed = message.trim()
+    if (!trimmed) {
+      return
     }
+
+    const replyToId = replyingTo || undefined
+
+    // Clear input and UI states first for snappier UX
+    setMessage("")
+    setReplyingTo(null)
+    setShowEmojiPicker(false)
+
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      content: trimmed,
+      sender: "You",
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      isVendor: false,
+      replyTo: replyToId,
+      deletedFor: "none",
+    }
+
+    addMessageToChat(newMessage)
   }
 
   const addMessageToChat = (newMessage: Message) => {
@@ -665,16 +673,15 @@ export default function ChatInterface() {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4">
-          <AnimatePresence>
+          <AnimatePresence initial={false}>
             {activeMessages
               .filter((msg) => msg.deletedFor !== "everyone" && msg.deletedFor !== "me")
-              .map((msg, index) => (
+              .map((msg) => (
                 <motion.div
                   key={msg.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  transition={{ delay: index * 0.1 }}
                   className={`flex gap-3 mb-4 ${msg.isVendor ? "" : "justify-end"}`}
                 >
                   {msg.isVendor && activeChatDetails && (
@@ -826,10 +833,10 @@ export default function ChatInterface() {
           <div className="flex items-center gap-2">
             <motion.input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
             <motion.input type="file" ref={videoInputRef} className="hidden" accept="video/*" onChange={handleVideoUpload} />
-            <motion.button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-gray-100 rounded-full">
+            <motion.button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-gray-100 rounded-full">
               <Paperclip className="w-5 h-5 text-gray-500" />
             </motion.button>
-            <motion.button onClick={() => videoInputRef.current?.click()} className="p-2 hover:bg-gray-100 rounded-full">
+            <motion.button type="button" onClick={() => videoInputRef.current?.click()} className="p-2 hover:bg-gray-100 rounded-full">
               <Video className="w-5 h-5 text-gray-500" />
             </motion.button>
 
@@ -840,15 +847,22 @@ export default function ChatInterface() {
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder={editingMessageId ? "Edit message..." : "Write Something..."}
                 className="w-full pl-4 pr-10 py-2 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                onKeyPress={(e) => e.key === "Enter" && (editingMessageId ? handleSaveEdit() : handleSendMessage())}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    editingMessageId ? handleSaveEdit() : handleSendMessage()
+                  }
+                }}
               />
               <motion.button
+                type="button"
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                 className="absolute right-10 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-200 rounded-full"
               >
                 <Smile className="w-5 h-5 text-gray-500" />
               </motion.button>
               <motion.button
+                type="button"
                 onClick={editingMessageId ? handleSaveEdit : handleSendMessage}
                 className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-orange-600 bg-orange-500 rounded-full text-white"
               >
